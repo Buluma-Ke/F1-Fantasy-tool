@@ -10,8 +10,8 @@ class JsonToDfStep(object):
 
     def loadjson(self):
         """
-        input: JSON file location; file path
-               including nested jason
+        Args  : JSON file location; file path
+                including nested jason
         return: Dictionery of the a f1 seasons race results as data
         """
         try:
@@ -32,8 +32,8 @@ class JsonToDfStep(object):
     def track_data(self):
 
         """
-        input: Dictionery object stored in self.data["races"]
-        returns: List pf dictioneries containing track information
+        Args   : Dictionery object stored in self.data["races"]
+        returns: List of dictioneries containing track information
         """
 
         track_list = []
@@ -56,51 +56,126 @@ class JsonToDfStep(object):
         return track_list
 
 
-
-
-
-
-
-    def driver_data(self):
+    def raceresults(self):
         """
-        Input: Dictionary object stored in self.data["raceResults"]
-        Returns: A list of drivers throughot the season dictionaries (each corresponding to a driver)
+        Args   : Dictionery object stored in self.data["raceResults]
+        Returns: a list of dictioneries of each round results
         """
-        self.driver_data = self.data["raceResults"]
-        drivers_list = []
-        #drivers = self.data[f'1']['drivers'] # list
-        for round in range(2, len(self.driver_data)):                  # Works, dont as me how
-            drivers = self.driver_data[f'{round}']['drivers'] # list
-            for driver in drivers:
-                if driver in drivers:
-                    pass
-                else:
-                    print("Extra driver found")
+        self.results = self.data['seasonResult']["raceResults"]
 
-        for i in range(len(drivers)):
+        return self.results
+
+
+
+    def DriverResults(self, rounNUmber):
+        """
+        Args   : Dictionary object from raceresults(self) stored in results:
+                 roundNumber; the race event
+        Returns: A list of how each driver faired in the event
+        """
+        self.driver_results = self.results[f'{rounNUmber}']['drivers']
+        DriverResult_list = []
+
+        for i in range(len(self.driver_results)):
             driver_dict = {}
-            for key, value in drivers[i].items():
+            for key, value in self.driver_results[i].items():
                 if key == 'raceResult':
-                    break
+                    pass
                 driver_dict[key] = value
-            drivers_list.append(driver_dict)
+            DriverResult_list.append(driver_dict)
             print(f"{i} {driver_dict['id']} loaded")
 
 
         #clsprint(drivers_list)
-        print(f"{len(drivers_list)} drivers loaded")
+        print(f"{len(DriverResult_list)} drivers loaded")
 
-        return drivers_list
+        return DriverResult_list
 
 
 
-    #def constractor_data(self):
+    def CustructorsResults(self, roundNumber):
+        """
+        Args   : Dictionary object from raceresults(self) stored in results:
+                 roundNumber; the race event
+        Returns: A list of how each constructor faired in the event
+        """
+        self.CustructorsResults = self.results[f"{roundNumber}"]['constructors']
+        constructorResult_list = []
 
+        for i in range(len(self.CustructorsResults)):
+            constructor_dict = {}
+            for key, value in self.CustructorsResults[i].items():
+                if key == "raceResult":
+                    continue
+                constructor_dict[key] = value
+            constructorResult_list.append(constructor_dict)
+            print(f"{i} {constructor_dict['id']} loaded")
+
+        return constructorResult_list
+
+
+    def _extract_results(self, roundNumber, category, session_type):
+        """
+        Generic helper to extract results for drivers or constructors.
+
+        Args   : roundNumber (int or str): The race round number.
+                 category (str): 'drivers' or 'constructors'.
+                 session_type (str): 'R' for race, 'Q' for qualifying.
+
+        Returns: list[dict]: List of result dictionaries.
+        """
+        data = self.results.get(f'{roundNumber}', {}).get(category, [])
+        result_list = []
+
+        for item in data:
+            race_result = item.get('raceResult', {})
+            session_results = race_result.get(session_type)
+
+            # Skip if this session doesn't exist for this round
+            if not session_results:
+                continue
+
+            entity_id = item.get('id', 'unknown')
+            entity_dict = {"id": entity_id}
+
+            for key, values in session_results.items():
+                for subkey, val in values.items():
+                    entity_dict[f"{session_type}_{key}_{subkey}"] = val
+
+            result_list.append(entity_dict)
+
+        print(f"{category.capitalize()} {session_type} results found: {len(result_list)}")
+        return result_list
+
+
+
+    def DriverRaceResults(self, roundNumber):
+        return self._extract_results(roundNumber, 'drivers', 'R')
+
+
+    def DriverQualifyingResults(self, roundNumber):
+        return self._extract_results(roundNumber, 'drivers', 'Q')
+
+
+    def DriverSprintResults(self, roundNumber):
+        return self._extract_results(roundNumber, 'drivers', 'S')
+
+
+    def Constructor_race_results(self, roundNumber):
+        return self._extract_results(roundNumber, 'constructors', 'R')
+
+
+    def Constructor_qualifying_results(self, roundNumber):
+        return self._extract_results(roundNumber, 'constructors', 'Q')
+
+
+    def Constructor_sprint_results(self, roundNumber):
+        return self._extract_results(roundNumber, 'constructors', 'S')
 
 
     def loadtodf(self, data_list):
         """
-        input: list object i.e stored in drivers_list
+        input  : list object i.e stored in drivers_list
         Returns: Dataframe object
         """
         df = pd.DataFrame(data_list)
@@ -114,9 +189,15 @@ class JsonToDfStep(object):
 
 #Example usage
 
+# BWVuuAZ[I>CDJC8i
 jsonfile = JsonToDfStep("f1fantasydata2024.json")
 data = jsonfile.loadjson()
-# listof_drivers = jsonfile.driver_data()
-# driver_df = jsonfile.loadtodf(listof_drivers)
-track_data = jsonfile.track_data()
-track_data = jsonfile.loadtodf(track_data)
+jsonfile.raceresults()
+#listOfRace_1_drivers_result = jsonfile.DriverResults(16)
+#driver_df = jsonfile.loadtodf(listOfRace_1_drivers_result)
+# listOfRace_1_constructors_result = jsonfile.CustructorsResults(1)
+# constructor_round_1_df = jsonfile.loadtodf(listOfRace_1_constructors_result)
+# track_data = jsonfile.track_data()
+# track_data = jsonfile.loadtodf(track_data)
+DRR = jsonfile.Constructor_sprint_results(6)
+DRR_DF = jsonfile.loadtodf(DRR)
