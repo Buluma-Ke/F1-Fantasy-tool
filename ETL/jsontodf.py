@@ -118,7 +118,7 @@ class JsonToDfStep(object):
         """
         Generic helper to extract results for drivers or constructors.
 
-        Args   : roundNumber (int or str): The race round number.
+        Args   : roundNumber (int rep as str): The race round number.
                  category (str): 'drivers' or 'constructors'.
                  session_type (str): 'R' for race, 'Q' for qualifying.
 
@@ -193,11 +193,12 @@ class JsonToDfStep(object):
 jsonfile = JsonToDfStep("f1fantasydata2024.json")
 data = jsonfile.loadjson()
 jsonfile.raceresults()
-#listOfRace_1_drivers_result = jsonfile.DriverResults(16)
-#driver_df = jsonfile.loadtodf(listOfRace_1_drivers_result)
-# listOfRace_1_constructors_result = jsonfile.CustructorsResults(1)
-# constructor_round_1_df = jsonfile.loadtodf(listOfRace_1_constructors_result)
-# track_data = jsonfile.track_data()
-# track_data = jsonfile.loadtodf(track_data)
+listOfRace_1_drivers_result = jsonfile.DriverResults(1)
+driver_df = jsonfile.loadtodf(listOfRace_1_drivers_result)
+listOfRace_1_constructors_result = jsonfile.CustructorsResults(1)
+constructor_round_1_df = jsonfile.loadtodf(listOfRace_1_constructors_result)
+track_data = jsonfile.loadtodf(track_data)
+track_data = jsonfile.track_data()
+
 DRR = jsonfile.Constructor_sprint_results(6)
 DRR_DF = jsonfile.loadtodf(DRR)
