@@ -1,7 +1,7 @@
 import pandas as pd
 import json
 
-class JsonToDfStep(object):
+class F1FantasyFrameBuilder(object):
 
     def __init__(self, jasonfile):
 
@@ -99,12 +99,12 @@ class JsonToDfStep(object):
                  roundNumber; the race event
         Returns: A list of how each constructor faired in the event
         """
-        self.CustructorsResults = self.results[f"{roundNumber}"]['constructors']
+        self.custructorsresults = self.results[f"{roundNumber}"]['constructors']
         constructorResult_list = []
 
-        for i in range(len(self.CustructorsResults)):
+        for i in range(len(self.custructorsresults)):
             constructor_dict = {}
-            for key, value in self.CustructorsResults[i].items():
+            for key, value in self.custructorsresults[i].items():
                 if key == "raceResult":
                     continue
                 constructor_dict[key] = value
@@ -188,17 +188,3 @@ class JsonToDfStep(object):
 
 
 #Example usage
-
-# BWVuuAZ[I>CDJC8i
-jsonfile = JsonToDfStep("f1fantasydata2024.json")
-data = jsonfile.loadjson()
-jsonfile.raceresults()
-listOfRace_1_drivers_result = jsonfile.DriverResults(1)
-driver_df = jsonfile.loadtodf(listOfRace_1_drivers_result)
-listOfRace_1_constructors_result = jsonfile.CustructorsResults(1)
-constructor_round_1_df = jsonfile.loadtodf(listOfRace_1_constructors_result)
-track_data = jsonfile.loadtodf(track_data)
-track_data = jsonfile.track_data()
-
-DRR = jsonfile.Constructor_sprint_results(6)
-DRR_DF = jsonfile.loadtodf(DRR)
