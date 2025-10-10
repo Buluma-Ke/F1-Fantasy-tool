@@ -17,7 +17,7 @@ class F1FantasyFrameBuilder(object):
         try:
             with open(self.jsonfile) as f:
                 self.jsonloaded = json.load(f)
-                self.data = self.jsonloaded # since the data only contains the 2024 f1 seasons
+                self.data = self.jsonloaded # since the data only contains the 2024 f1 seasons // needs automation
                 print("JSON file loaded succesfully")
                 print(f"{len(self.data['seasonResult']['raceResults'])} races found throughout the {self.jsonloaded['seasonResult']["season"]} F1 season")
 
