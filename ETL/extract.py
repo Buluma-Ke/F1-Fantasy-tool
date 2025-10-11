@@ -1,9 +1,10 @@
 import requests
 import json
 
-url = 'https://f1fantasytools.com/api/statistics/2024'
+#url = 'https://f1fantasytools.com/api/statistics/2024'
 
 def fetch_f1_fantasy_data(url):
+        year = url[-4:]
 
         """
         Fetch data from F1 Fantasy Tools API and return as JSON.
@@ -29,17 +30,8 @@ def fetch_f1_fantasy_data(url):
         try:
             response = requests.get(url, headers=headers)
 
-            #print(response)
             data = response.json()
 
-            # Print or inspect
-            #print(data)
-
-            #print(json.dumps(data, indent=2)[:2000])
-
-            return data
+            return data, year
         except:
               print(f"{response} Error parsing request!!")
-
-
-fetch_f1_fantasy_data(url)

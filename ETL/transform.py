@@ -3,10 +3,10 @@ import json
 
 class F1FantasyFrameBuilder(object):
 
-    def __init__(self, jasonfile):
+    def __init__(self, jsondata):
 
-        self.jsonfile = jasonfile
-
+        self.jsondata = jsondata
+        #self.year = year
 
     def loadjson(self):
         """
@@ -15,7 +15,7 @@ class F1FantasyFrameBuilder(object):
         return: Dictionery of the a f1 seasons race results as data
         """
         try:
-            with open(self.jsonfile) as f:
+            with open(self.jsondata) as f:
                 self.jsonloaded = json.load(f)
                 self.data = self.jsonloaded # since the data only contains the 2024 f1 seasons // needs automation
                 print("JSON file loaded succesfully")
@@ -53,6 +53,7 @@ class F1FantasyFrameBuilder(object):
             track_list.append(track_dict)
 
         print(f'{len(track_list)} tracks added!')
+        print(track_list[0]['start_times'])
         return track_list
 
 
@@ -79,15 +80,59 @@ class F1FantasyFrameBuilder(object):
         for i in range(len(self.driver_results)):
             driver_dict = {}
             for key, value in self.driver_results[i].items():
+                print( key == 'raceResult')
                 if key == 'raceResult':
-                    pass
+                    print(f"Skipping raceResult at index {i}")
+
+                    continue
+
                 driver_dict[key] = value
             DriverResult_list.append(driver_dict)
-            print(f"{i} {driver_dict['id']} loaded")
+            # for i in range(len(self.driver_results)):
+            #     driver_dict = {k: v for k, v in self.driver_results[i].items() if k != 'raceResult'}
+            #     DriverResult_list.append(driver_dict)
+
+            #print(f"{i} {driver_dict['id']} loaded")
 
 
         #clsprint(drivers_list)
-        print(f"{len(DriverResult_list)} drivers loaded")
+        #print(f"{len(DriverResult_list)} drivers loaded")
+
+        return DriverResult_list
+
+    def DriverResults(self, rounNUmber):
+        """
+        Args   : Dictionary object from raceresults(self) stored in results:
+                 roundNumber; the race event
+        Returns: A list of how each driver faired in the event
+        """
+        self.driver_results = self.results[f'{rounNUmber}']['drivers']
+        DriverResult_list = []
+
+        for i in range(len(self.driver_results)):
+            driver_dict = {}
+
+            for key, value in self.driver_results[i].items():
+                print( key == 'raceResult')
+
+                if key == 'raceResult':
+                    print(f"Skipping raceResult at index {i}")
+                    continue
+
+                print(key)
+                driver_dict[key] = value
+
+            print(driver_dict)
+            DriverResult_list.append(driver_dict)
+            # for i in range(len(self.driver_results)):
+            #     driver_dict = {k: v for k, v in self.driver_results[i].items() if k != 'raceResult'}
+            #     DriverResult_list.append(driver_dict)
+
+            #print(f"{i} {driver_dict['id']} loaded")
+
+
+        #clsprint(drivers_list)
+        #print(f"{len(DriverResult_list)} drivers loaded")
 
         return DriverResult_list
 
@@ -179,7 +224,7 @@ class F1FantasyFrameBuilder(object):
         Returns: Dataframe object
         """
         df = pd.DataFrame(data_list)
-        print(df)
+        #print(df)
         return df
         # import pandas as pd
 
