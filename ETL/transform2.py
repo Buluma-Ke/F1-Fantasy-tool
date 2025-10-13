@@ -22,12 +22,14 @@ def TransformDf(df):
                     df['race'] = pd.to_datetime(df['start_times'].apply(lambda x: x.get('race') if isinstance(x, dict) else None), errors='coerce')
 
                 df = df.drop(columns=['start_times'])
-                print('quali innit!!')
-                print(df)
+                print('Racestaart time Dictionery Normalized!!')
+                return df
+
+
             except Exception as e:
                 print(f"Transformation failed for column '{column}': {e}")
 
-TransformDf()
+                return df
 
 
 
