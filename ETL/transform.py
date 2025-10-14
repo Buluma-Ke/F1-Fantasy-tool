@@ -68,11 +68,11 @@ class F1FantasyFrameBuilder(object):
 
         for track in self.track_info:
             track_dict = {}
-            for key, value in track.items():
-                if key == 'flagUrl' or  key == 'circuitMapUrl':
+            for k, v in track.items():
+                if k == 'flagUrl' or  k == 'circuitMapUrl':
                     continue
 
-                track_dict[key] = value
+                track_dict[k] = v
                 #print(track_dict)
             #print(f'{track_dict['name']} added')
 
@@ -129,7 +129,7 @@ class F1FantasyFrameBuilder(object):
 
 
 
-    def CustructorsResults(self, roundNumber):
+    def ConstructorsResults(self, roundNumber):
         """
         Args   : Dictionary object from raceresults(self) stored in results:
                  roundNumber; the race event
@@ -141,10 +141,10 @@ class F1FantasyFrameBuilder(object):
 
         for i in range(len(self.custructorsresults)):
             constructor_dict = {}
-            for key, value in self.custructorsresults[i].items():
-                if key == "raceResult":
+            for k, v in self.custructorsresults[i].items():
+                if k == 'raceResult':
                     continue
-                constructor_dict[key] = value
+                constructor_dict[k] = v
             constructorResult_list.append(constructor_dict)
             print(f"{i} {constructor_dict['id']} loaded")
 

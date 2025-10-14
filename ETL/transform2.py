@@ -38,10 +38,14 @@ def PointTextColumnDeletion(df):
     textcolumns = []
 
     for column in columns:
-        if column.endswith('Points_text'):
+        if column.endswith('_text'):
             textcolumns.append(column)
 
-    print('Dropping columns:')
-    print(textcolumns)
-    df = df.drop(textcolumns, axis=1)
-    return df
+        print('Dropping columns:')
+        print(textcolumns)
+        df = df.drop(textcolumns, axis=1)
+
+        return df
+    else:
+        print('No text column found')
+        return df

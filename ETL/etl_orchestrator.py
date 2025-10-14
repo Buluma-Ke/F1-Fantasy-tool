@@ -2,6 +2,8 @@ import logging
 import time
 import datetime
 import re
+import traceback
+
 
 from extract import fetch_f1_fantasy_data
 from transform import F1FantasyFrameBuilder
@@ -19,54 +21,157 @@ def RunEtlPipeline(API_url):
     """
     logging.info(f"Starting ETL pipeline for {API_url}")
 
-    try:
-        # 1. extract
+    # create database connection
+    postgresdb = PostgresLoader()
+    postgresdb.get_connection_details()
+    postgresdb.create_engine()
 
+
+
+    try:
+        # 1️⃣ Extract
         raw_data = fetch_f1_fantasy_data(API_url)
-        logging.info(f"Extraction succesful for {API_url}")
+        logging.info(f"Extraction successful for {API_url}")
+
         if raw_data is None or len(raw_data) == 0:
             logging.error(f"Extraction failed or returned no data for {API_url}")
-
             return False
 
+        # 2️⃣ Transform
+        try:
+            logging.info("🚀 Starting data transformation process...")
 
-        # 2. transform
-        jsontodf = F1FantasyFrameBuilder(raw_data)
-        jsontodf.loadjson()
-        logging.info("json loaded")
-        jsontodf.raceresults()
+            jsontodf = F1FantasyFrameBuilder(raw_data)
+            jsontodf.loadjson()
+            logging.info("✅ JSON successfully loaded into memory.")
 
-        trackdata, key = jsontodf.DriverResults(1)
-        table=generate_table_name(key, 1,raw_data)
-        print(table)
-        print(len(trackdata))
+            jsontodf.raceresults()
+            logging.info("✅ Race results transformation complete.")
 
-        trackdf = jsontodf.loadtodf(trackdata)
+            track_data, key = jsontodf.track_data()
+            logging.info("Track data extracted successfully for key: %s", key)
 
-        # 2.5 transform2
-        #trackdf = TransformDf(trackdf)
-        print(trackdf.shape)
-        #print(trackdf)
+            trackdf = jsontodf.loadtodf(track_data)
+            logging.info("Track data loaded into DataFrame (rows=%d, cols=%d)", len(trackdf), len(trackdf.columns))
 
-        if trackdf is None or len(trackdf) == 0:
-            logging.error(f"Transformation failed or returned empty dataset for {API_url}")
+            trackdf = TransformDf(trackdf)
+            track_table = generate_table_name(key, 1, raw_data)
+            logging.info("Track data transformed. Target table: %s", track_table)
 
-            return False
+            sprint_rounds = trackdf.loc[trackdf['sprint'].notna(), 'roundNumber'].tolist()
+            logging.info("Sprint rounds detected: %s", sprint_rounds)
+
+            season_result = raw_data.get("seasonResult", {})
+            total_rounds = season_result.get("raceResults", [])
+
+            total_rounds = len(total_rounds)
+            logging.info("Total rounds found in raw_data: %d", total_rounds)
+
+            # 3️⃣ Iterate over each round
+
+            for i in range(1, total_rounds + 1):
+                logging.info("---- 🏁 Processing round %d/%d ----", i, total_rounds)
+
+                try:
+                    # ---------------- DRIVER RESULTS ----------------
+                    driverdata, key = jsontodf.DriverResults(i)
+                    driverdf = jsontodf.loadtodf(driverdata)
+                    driverdf = PointTextColumnDeletion(driverdf)
+                    driver_table = generate_table_name(key, i, raw_data)
+                    logging.info("Driver results processed. Table: %s", driver_table)
+
+                    # ---------------- CONSTRUCTOR RESULTS ----------------
+                    constructordata, key = jsontodf.ConstructorsResults(i)
+                    print(len(constructordata))
+                    const_df = jsontodf.loadtodf(constructordata)
+                    const_df = PointTextColumnDeletion(const_df)
+                    print(const_df.columns)
+                    consructor_table = generate_table_name(key, i, raw_data)
+                    logging.info("Constructor results processed. Table: %s", consructor_table)
 
 
 
+                    # ---------------- DRIVER RACE RESULTS ----------------
+                    driver_race_data, key = jsontodf.DriverRaceResults(i)
+                    driverdf_race = jsontodf.loadtodf(driver_race_data)
+                    driverdf_race = PointTextColumnDeletion(driverdf_race)
+                    driver_race_table = generate_table_name(key, i, raw_data)
+                    logging.info("Driver race results processed. Table: %s", driver_race_table)
 
-    #     # 4. load
-        # inserter = PostgresLoader()
-        # inserter.get_connection_details()
-        # inserter.create_engine()
-        # table_name = generate_table_name()
-        # inserter.insert_dataframe(trackdf, table_name = table_name)
+                    # ---------------- DRIVER QUALIFYING RESULTS ----------------
+                    driver_quali_data, key = jsontodf.DriverQualifyingResults(i)
+                    driverquali_df = jsontodf.loadtodf(driver_quali_data)
+                    driverquali_df = PointTextColumnDeletion(driverquali_df)
+                    driver_quali_table = generate_table_name(key, i, raw_data)
+                    logging.info("Driver qualifying results processed. Table: %s", driver_quali_table)
+
+                    # ---------------- CONSTRUCTOR RACE RESULTS ----------------
+                    consructor_race_data, key = jsontodf.Constructor_race_results(i)
+                    consructordf_race = jsontodf.loadtodf(consructor_race_data)
+                    consructordf_race = PointTextColumnDeletion(consructordf_race)
+                    consructor_race_table = generate_table_name(key, i, raw_data)
+                    logging.info("Constructor race results processed. Table: %s", consructor_race_table)
+
+                    # ---------------- CONSTRUCTOR QUALIFYING RESULTS ----------------
+                    consructor_quali_data, key = jsontodf.Constructor_qualifying_results(i)
+                    consructordf_quali = jsontodf.loadtodf(consructor_quali_data)
+                    consructordf_quali = PointTextColumnDeletion(consructordf_quali)
+                    consructor_quali_table = generate_table_name(key, i, raw_data)
+                    logging.info("Constructor qualifying results processed. Table: %s", consructor_quali_table)
+
+                    # ---------------- SPRINT EVENTS ----------------
+                    if i in sprint_rounds:
+                        logging.info("Sprint round detected for round %d — processing sprint data...", i)
+                        driver_sprint_data, key = jsontodf.DriverSprintResults(i)
+                        driversprint_df = jsontodf.loadtodf(driver_sprint_data)
+                        driversprint_df = PointTextColumnDeletion(driversprint_df)
+                        driver_sprint_table = generate_table_name(key, i, raw_data)
+
+                        consructor_sprint_data, key = jsontodf.Constructor_sprint_results(i)
+                        consructordf_sprint = jsontodf.loadtodf(consructor_sprint_data)
+                        consructordf_sprint = PointTextColumnDeletion(consructordf_sprint)
+                        consructor_sprint_table = generate_table_name(key, i, raw_data)
+                        logging.info("Sprint data processed for round %d", i)
+                    else:
+                        driversprint_df = consructordf_sprint = driver_sprint_table = consructor_sprint_table = None
+
+                    # ---------------- LOAD TO DATABASE ----------------
+                    try:
+                        logging.info("⬆️ Starting data load for round %d...", i)
+                        postgresdb.insert_dataframe(trackdf, table_name=track_table)
+                        postgresdb.insert_dataframe(driverdf, table_name=driver_table)
+                        postgresdb.insert_dataframe(const_df, table_name=consructor_table)
+                        postgresdb.insert_dataframe(driverdf_race, table_name=driver_race_table)
+                        postgresdb.insert_dataframe(driverquali_df, table_name=driver_quali_table)
+                        postgresdb.insert_dataframe(consructordf_race, table_name=consructor_race_table)
+                        postgresdb.insert_dataframe(consructordf_quali, table_name=consructor_quali_table)
+
+                        if driversprint_df is not None:
+                            postgresdb.insert_dataframe(driversprint_df, table_name=driver_sprint_table)
+                            postgresdb.insert_dataframe(consructordf_sprint, table_name=consructor_sprint_table)
+
+                        logging.info("✅ All data successfully inserted for round %d.", i)
+
+                    except Exception as e:
+                        logging.error("❌ Database insertion failed for round %d: %s", i, e)
+                        logging.debug(traceback.format_exc())
+
+
+                except Exception as e:
+                    logging.error("❌ Error during processing of round %d: %s", i, e)
+                    logging.debug(traceback.format_exc())
+                    continue  # Continue to next round even if this one fails
+
+            logging.info("🎯 Transformation and loading process completed successfully for all rounds.")
+
+        except Exception as e:
+            logging.error("💥 ETL transformation step failed: %s", e)
+            logging.debug(traceback.format_exc())
 
     except Exception as e:
-        logging.exception(f"ETL pipeline for {API_url} failed: {e}")
+        logging.error("💥 Top-level ETL failure: %s", e)
+        logging.debug(traceback.format_exc())
 
-        return False
 
 def generate_table_name(data_type: str, roundnumber: int | str, data: dict | None = None) -> str:
     """
@@ -102,15 +207,15 @@ def main():
     apis = ['https://f1fantasytools.com/api/statistics/2024']  # define your different API sources
 
 
-
-    for i in range(24):
-        success = RunEtlPipeline(apis)
+    for api in apis:
+        success = RunEtlPipeline(api)
         if not success:
-            logging.error(f"Stopping ETL process due to failure in {apis}.")
-            break
+            logging.error(f"Stopping ETL process due to failure in {api}.")
+            return  # stop the function instead of using 'break'
         time.sleep(2)  # optional pause between API runs
 
     logging.info("All ETL jobs complete.")
+
 
 
 if __name__ == "__main__":
