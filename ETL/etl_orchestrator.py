@@ -3,12 +3,13 @@ import time
 import datetime
 import re
 import traceback
+import pandas as pd
 
 
 from extract import fetch_f1_fantasy_data
 from transform import F1FantasyFrameBuilder
 from transform2 import TransformDf, PointTextColumnDeletion
-from load import PostgresLoader
+from load import PostgresLoader, RunQuery
 
 logging.basicConfig(
     level=logging.INFO,
@@ -77,8 +78,21 @@ def RunEtlPipeline(API_url):
                     driverdata, key = jsontodf.DriverResults(i)
                     driverdf = jsontodf.loadtodf(driverdata)
                     driverdf = PointTextColumnDeletion(driverdf)
+                    driverdf['team'] = driverdf['id'].str.split('_', expand=True)[0]
                     driver_table = generate_table_name(key, i, raw_data)
                     logging.info("Driver results processed. Table: %s", driver_table)
+
+                    # Initialize anchortable in first iteration
+                    if i == 1:
+                        anchortable = driverdf[['id', 'abbreviation']].copy()
+
+                    # Add any new drivers found in later rounds
+                    for _, driver in driverdf[['id', 'abbreviation']].iterrows():
+                        if driver['id'] not in anchortable['id'].values:
+                            anchortable = pd.concat([anchortable, pd.DataFrame([driver])], ignore_index=True)
+                            postgresdb.insert_dataframe(anchortable, table_name='drivers')
+                            postgresdb.RunQuery('ALTER TABLE drivers ADD CONSTRAINT pk_drivers_id PRIMARY KEY (id);')
+
 
                     # ---------------- CONSTRUCTOR RESULTS ----------------
                     constructordata, key = jsontodf.ConstructorsResults(i)
@@ -89,11 +103,22 @@ def RunEtlPipeline(API_url):
                     consructor_table = generate_table_name(key, i, raw_data)
                     logging.info("Constructor results processed. Table: %s", consructor_table)
 
+                     # Initialize anchortable in first iteration
+                    if i == 1:
+                        anchortable_con = const_df[['id', 'abbreviation']].copy()
+
+                    # Add any new constractor found in later rounds
+                    for _, const in const_df[['id', 'abbreviation']].iterrows():
+                        if const['id'] not in anchortable_con['id'].values:
+                            anchortable_con = pd.concat([anchortable_con, pd.DataFrame([const])], ignore_index=True)
+                            postgresdb.insert_dataframe(anchortable_con, table_name='constructors')
+                            postgresdb.RunQuery('ALTER TABLE constructors ADD CONSTRAINT pk_constructors_id PRIMARY KEY(id);')
 
 
                     # ---------------- DRIVER RACE RESULTS ----------------
                     driver_race_data, key = jsontodf.DriverRaceResults(i)
                     driverdf_race = jsontodf.loadtodf(driver_race_data)
+                    driverdf_race['team'] = driverdf_race['id'].str.split('_', expand=True)[0]
                     driverdf_race = PointTextColumnDeletion(driverdf_race)
                     driver_race_table = generate_table_name(key, i, raw_data)
                     logging.info("Driver race results processed. Table: %s", driver_race_table)
@@ -102,6 +127,7 @@ def RunEtlPipeline(API_url):
                     driver_quali_data, key = jsontodf.DriverQualifyingResults(i)
                     driverquali_df = jsontodf.loadtodf(driver_quali_data)
                     driverquali_df = PointTextColumnDeletion(driverquali_df)
+                    driverquali_df['team'] = driverquali_df['id'].str.split('_', expand=True)[0]
                     driver_quali_table = generate_table_name(key, i, raw_data)
                     logging.info("Driver qualifying results processed. Table: %s", driver_quali_table)
 
@@ -125,6 +151,7 @@ def RunEtlPipeline(API_url):
                         driver_sprint_data, key = jsontodf.DriverSprintResults(i)
                         driversprint_df = jsontodf.loadtodf(driver_sprint_data)
                         driversprint_df = PointTextColumnDeletion(driversprint_df)
+                        driversprint_df['team'] = driversprint_df['id'].str.split('_', expand=True)[0]
                         driver_sprint_table = generate_table_name(key, i, raw_data)
 
                         consructor_sprint_data, key = jsontodf.Constructor_sprint_results(i)
@@ -135,20 +162,29 @@ def RunEtlPipeline(API_url):
                     else:
                         driversprint_df = consructordf_sprint = driver_sprint_table = consructor_sprint_table = None
 
-                    # ---------------- LOAD TO DATABASE ----------------
+                    # ---------------- LOAD TO DATABASE ------------------------
                     try:
-                        logging.info("⬆️ Starting data load for round %d...", i)
-                        postgresdb.insert_dataframe(trackdf, table_name=track_table)
+                        #logging.info("⬆️ Starting data load for round %d...", i)
+                        #postgresdb.insert_dataframe(trackdf, table_name=track_table)
                         postgresdb.insert_dataframe(driverdf, table_name=driver_table)
+                        postgresdb.RunQuery(f'ALTER TABLE {driver_table} ADD CONSTRAINT fk_drivers_id FOREIGN KEY(id) REFERENCES drivers(id);')
                         postgresdb.insert_dataframe(const_df, table_name=consructor_table)
+                        postgresdb.RunQuery(f'ALTER TABLE {consructor_table} ADD CONSTRAINT fk_constructors_id FOREIGN KEY(id) REFERENCES constructors;')
                         postgresdb.insert_dataframe(driverdf_race, table_name=driver_race_table)
+                        postgresdb.RunQuery(f'ALTER TABLE {driver_race_table} ADD CONSTRAINT fk_drivers_id FOREIGN KEY(id) REFERENCES drivers(id);')
                         postgresdb.insert_dataframe(driverquali_df, table_name=driver_quali_table)
+                        postgresdb.RunQuery(f'ALTER TABLE {driver_quali_table} ADD CONSTRAINT fk_drivers_id FOREIGN KEY(id) REFERENCES drivers(id);')
                         postgresdb.insert_dataframe(consructordf_race, table_name=consructor_race_table)
+                        postgresdb.RunQuery(f'ALTER TABLE {consructor_race_table} ADD CONSTRAINT fk_constructors_id FOREIGN KEY(id) REFERENCES constructors;')
                         postgresdb.insert_dataframe(consructordf_quali, table_name=consructor_quali_table)
+                        postgresdb.RunQuery(f'ALTER TABLE {consructor_quali_table} ADD CONSTRAINT fk_constructors_id FOREIGN KEY(id) REFERENCES constructors;')
 
                         if driversprint_df is not None:
                             postgresdb.insert_dataframe(driversprint_df, table_name=driver_sprint_table)
+                            postgresdb.RunQuery(f'ALTER TABLE {driver_sprint_table} ADD CONSTRAINT fk_drivers_id FOREIGN KEY(id) REFERENCES drivers(id);')
                             postgresdb.insert_dataframe(consructordf_sprint, table_name=consructor_sprint_table)
+                            postgresdb.RunQuery(f'ALTER TABLE {consructor_sprint_table} ADD CONSTRAINT fk_constructors_id FOREIGN KEY(id) REFERENCES constructors;')
+
 
                         logging.info("✅ All data successfully inserted for round %d.", i)
 
@@ -161,6 +197,9 @@ def RunEtlPipeline(API_url):
                     logging.error("❌ Error during processing of round %d: %s", i, e)
                     logging.debug(traceback.format_exc())
                     continue  # Continue to next round even if this one fails
+
+                postgresdb.insert_dataframe(trackdf, table_name=track_table)
+                postgresdb.RunQuery(f'ALTER TABLE {track_table} ADD CONSTRAINT pk_track_id PRIMARY KEY(id);')
 
             logging.info("🎯 Transformation and loading process completed successfully for all rounds.")
 

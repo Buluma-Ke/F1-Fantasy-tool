@@ -34,18 +34,19 @@ def TransformDf(df):
 
 
 def PointTextColumnDeletion(df):
-    columns = df.columns
-    textcolumns = []
 
-    for column in columns:
-        if column.endswith('_text'):
-            textcolumns.append(column)
+    """
+    Drops all columns from a DataFrame whose names end with '_text'.
+    """
 
-        print('Dropping columns:')
+    # Find all columns ending with '_text'
+    textcolumns = [col for col in df.columns if col.endswith('_text')]
+
+    if textcolumns:
+        print("Deleting text columns:")
         print(textcolumns)
-        df = df.drop(textcolumns, axis=1)
-
-        return df
+        df = df.drop(column=textcolumns)
     else:
         print('No text column found')
-        return df
+
+    return df

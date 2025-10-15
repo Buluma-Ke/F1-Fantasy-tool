@@ -202,12 +202,12 @@ class F1FantasyFrameBuilder(object):
 
 
     def Constructor_race_results(self, roundNumber):
-        key = 'contructor_race_result'
+        key = 'constructor_race_result'
         return self._extract_results(roundNumber, 'constructors', 'R'), key
 
 
     def Constructor_qualifying_results(self, roundNumber):
-        key = 'custrutcor_qualifying_result'
+        key = 'construtcor_qualifying_result'
         return self._extract_results(roundNumber, 'constructors', 'Q'), key
 
 
